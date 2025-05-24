@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci -p
 
 # Copy source code
 COPY . .
@@ -14,6 +14,10 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
+FROM node:18-alpine AS runner
+COPY package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
 # Expose port for SSE
 EXPOSE 3001
 
