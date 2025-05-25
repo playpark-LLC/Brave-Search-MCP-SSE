@@ -17,6 +17,11 @@ if (!API_KEY) {
   throw new Error('BRAVE_API_KEY environment variable is required');
 }
 
+const AUTH_TOKEN = process.env.AUTH_BEARER_TOKEN;
+if (!AUTH_TOKEN) {
+  throw new Error('AUTH_BEARER_TOKEN environment variable is required');
+}
+
 const PORT = process.env.PORT || 3001;
 
 // Store active SSE clients
@@ -135,9 +140,30 @@ class BraveSearchServer {
     });
   }
 
+  private authenticateRequest(req: Request, res: Response, next: express.NextFunction) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Authentication failed: Bearer token required' });
+      return;
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (token !== AUTH_TOKEN) {
+      res.status(403).json({ error: 'Authentication failed: Invalid token' });
+      return;
+    }
+    
+    next();
+  }
+
   private setupSSEEndpoints() {
+    // Authentication middleware
+    const authMiddleware = this.authenticateRequest.bind(this);
+    
     // SSE endpoint
-    this.expressApp.get('/sse', (req: Request, res: Response) => {
+    this.expressApp.get('/sse', authMiddleware, (req: Request, res: Response) => {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -157,7 +183,7 @@ class BraveSearchServer {
     });
 
     // Messages endpoint for manual search requests
-    this.expressApp.post('/messages', async (req: Request, res: Response) => {
+    this.expressApp.post('/messages', authMiddleware, async (req: Request, res: Response) => {
       try {
         const { query, count } = req.body;
         // Handle the search request directly
