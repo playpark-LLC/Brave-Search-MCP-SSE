@@ -3,7 +3,6 @@ version: '3.8'
 services:
   brave-search-mcp:
     build: .
-    command: npm i && npm start
     ports:
       - "3001:3001"
     environment:
@@ -11,3 +10,4 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    tty: true
